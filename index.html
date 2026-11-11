@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assistente Clínico</title>
+<style>
+  :root {
+    --bg: #f5f5f7; --painel: #ffffff; --lateral: rgba(245, 245, 247, .6); --borda: #d2d2d7; --linha: #e8e8ed;
+    --texto: #1d1d1f; --suave: #6e6e73; --campo: #f5f5f7;
+    --primaria: #0071e3; --primaria-hover: #0077ed; --primaria-clara: rgba(0, 113, 227, .1);
+    --ok: #248a3d; --alerta: #b25000; --erro: #d70015; --codigo: #f5f5f7;
+    --sombra: 0 1px 2px rgba(0, 0, 0, .04), 0 8px 24px rgba(0, 0, 0, .05);
+    --fonte: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono: "SF Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #000000; --painel: #1c1c1e; --lateral: rgba(28, 28, 30, .6); --borda: #38383a; --linha: #2c2c2e;
+      --texto: #f5f5f7; --suave: #98989d; --campo: #2c2c2e;
+      --primaria: #0a84ff; --primaria-hover: #409cff; --primaria-clara: rgba(10, 132, 255, .18);
+      --ok: #30d158; --alerta: #ff9f0a; --erro: #ff453a; --codigo: #2c2c2e; --sombra: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body { margin: 0; background: var(--bg); color: var(--texto); font: 15px/1.47 var(--fonte); letter-spacing: -.01em; }
+
+  header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 16px; height: 52px; padding: 0 24px;
+           background: color-mix(in srgb, var(--bg) 72%, transparent); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
+           border-bottom: 1px solid var(--linha); }
+  header h1 { font-size: 17px; margin: 0; font-weight: 600; letter-spacing: -.02em; }
+  .status { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--suave); }
+  .bolinha { width: 8px; height: 8px; border-radius: 50%; background: var(--suave); display: inline-block; }
+  .bolinha.ok { background: var(--ok); } .bolinha.alerta { background: var(--alerta); } .bolinha.erro { background: var(--erro); }
+
+  .layout { display: grid; grid-template-columns: 272px 1fr; min-height: calc(100vh - 52px); }
+  aside { padding: 20px 14px; overflow-y: auto; max-height: calc(100vh - 52px); position: sticky; top: 52px; border-right: 1px solid var(--linha); }
+  aside h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); margin: 22px 10px 8px; }
+  aside h2:first-child { margin-top: 0; }
+  .tarefa { display: block; width: 100%; text-align: left; border: none; background: none; color: var(--texto);
+            padding: 8px 10px; border-radius: 9px; cursor: pointer; font: inherit; font-size: 14px; margin-bottom: 1px; transition: background .15s; }
+  .tarefa:hover { background: var(--linha); }
+  .tarefa.ativa { background: var(--primaria); color: #fff; font-weight: 500; }
+  .hist-busca { width: 100%; padding: 7px 12px; border: none; border-radius: 9px; background: var(--linha); color: var(--texto); font: inherit; font-size: 13px; }
+  .hist { margin-top: 6px; }
+  .hist-item { display: flex; gap: 6px; align-items: flex-start; padding: 7px 10px; border-radius: 9px; cursor: pointer; font-size: 13px; }
+  .hist-item:hover { background: var(--linha); }
+  .hist-item .t { flex: 1; min-width: 0; }
+  .hist-item .t b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hist-item .t span { color: var(--suave); font-size: 12px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hist-item .x { border: none; background: none; color: var(--suave); cursor: pointer; font-size: 15px; padding: 0 2px; opacity: 0; }
+  .hist-item:hover .x { opacity: 1; } .hist-item .x:hover { color: var(--erro); }
+  .cid-item { padding: 6px 10px; border-radius: 9px; font-size: 12.5px; cursor: pointer; }
+  .cid-item:hover { background: var(--linha); }
+  .cid-item b { color: var(--primaria); margin-right: 4px; font-weight: 600; }
+  .link { border: none; background: none; color: var(--suave); font: inherit; font-size: 12px; cursor: pointer; padding: 6px 10px; }
+  .link:hover { color: var(--erro); }
+
+  main { padding: 40px 32px 64px; display: flex; flex-direction: column; gap: 20px; max-width: 880px; width: 100%; margin: 0 auto; }
+  .titulo { font-size: 32px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; margin: 0 0 4px; }
+  .card { background: var(--painel); border-radius: 18px; padding: 22px; box-shadow: var(--sombra); }
+  .card h3 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.02em; }
+  textarea { width: 100%; min-height: 240px; resize: vertical; padding: 14px 16px; border: 1px solid transparent; border-radius: 12px;
+             background: var(--campo); color: var(--texto); font: 14px/1.55 var(--fonte); transition: border-color .15s, box-shadow .15s; }
+  textarea:focus, input:focus { outline: none; border-color: var(--primaria); box-shadow: 0 0 0 4px var(--primaria-clara); }
+  .linha { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+  button.btn { border: none; background: var(--linha); color: var(--texto); padding: 8px 16px; border-radius: 980px; cursor: pointer;
+               font: inherit; font-size: 14px; transition: background .15s, opacity .15s; }
+  button.btn:hover { background: var(--borda); }
+  button.btn.prim { background: var(--primaria); color: #fff; font-weight: 500; padding: 9px 22px; }
+  button.btn.prim:hover { background: var(--primaria-hover); }
+  button.btn:disabled { opacity: .4; cursor: default; }
+  .dica { color: var(--suave); font-size: 12.5px; }
+  .imagens { display: flex; gap: 10px; flex-wrap: wrap; }
+  .imagens:not(:empty) { margin-top: 12px; }
+  .imagens .img { position: relative; }
+  .imagens img { width: 84px; height: 84px; object-fit: cover; border-radius: 12px; display: block; }
+  .imagens .img button { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; border: none; background: var(--texto); color: var(--painel); cursor: pointer; line-height: 1; }
+  .soltar { border: 1px dashed var(--primaria) !important; }
+
+  #resultado { white-space: pre-wrap; word-wrap: break-word; min-height: 48px; margin-top: 14px; font-size: 15px; line-height: 1.55; }
+  #resultado .bloco { position: relative; background: var(--codigo); border-radius: 12px; padding: 14px 16px; margin: 8px 0;
+                      font: 13px/1.6 var(--mono); white-space: pre-wrap; }
+  #resultado .bloco button { position: absolute; top: 8px; right: 8px; font-size: 12px; padding: 4px 12px; background: var(--painel); }
+  .pensando { color: var(--suave); }
+  .meta { color: var(--suave); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .erro-msg { color: var(--erro); font-weight: 500; }
+  input.ajuste { flex: 1; min-width: 240px; padding: 9px 16px; border: 1px solid transparent; border-radius: 980px; background: var(--campo); color: var(--texto); font: inherit; font-size: 14px; }
+  .conf { margin-top: 18px; border-top: 1px solid var(--linha); padding-top: 16px; font-size: 13.5px; }
+  .conf > b { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); }
+  .conf .item { margin: 6px 0; }
+  .conf .ok { color: var(--suave); } .conf .atencao { color: var(--alerta); }
+  .conf .critico { color: var(--erro); font-weight: 600; }
+  .conf .ia { white-space: pre-wrap; background: var(--campo); border-radius: 12px; padding: 12px 14px; margin-top: 8px; }
+  .aviso { color: var(--suave); font-size: 12.5px; text-align: center; padding: 0 16px; }
+  .oculto { display: none !important; }
+  @media (max-width: 800px) {
+    .layout { grid-template-columns: 1fr; }
+    aside { position: static; max-height: none; border-right: none; border-bottom: 1px solid var(--linha); }
+    main { padding: 24px 16px 48px; }
+    .titulo { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Assistente Clínico</h1>
+  <div class="status">
+    <span class="bolinha" id="bolinha"></span>
+    <span id="statusTexto">Verificando a IA…</span>
+    <button class="btn oculto" id="btnIniciarIA">Informar chave</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside>
+    <h2>Tarefas</h2>
+    <div id="listaTarefas"></div>
+    <h2>CID-10</h2>
+    <input class="hist-busca" id="buscaCid" placeholder="Buscar código ou palavra">
+    <div id="resCid" style="max-height:220px;overflow-y:auto;margin-top:6px"></div>
+    <h2>Histórico</h2>
+    <input class="hist-busca" id="busca" placeholder="Buscar">
+    <div class="hist" id="historico"></div>
+    <button class="link" id="btnLimparHist">Apagar histórico</button>
+  </aside>
+
+  <main>
+    <h2 class="titulo" id="tituloTarefa">Escolha uma tarefa</h2>
+    <div class="card">
+      <textarea id="entrada" placeholder="Cole aqui o texto. Para laudos, arraste ou cole as fotos."></textarea>
+      <div class="imagens" id="imagens"></div>
+      <div class="linha">
+        <button class="btn prim" id="btnGerar">Gerar</button>
+        <button class="btn" id="btnAnexar">Anexar fotos</button>
+        <input type="file" id="arquivo" accept="image/*" multiple class="oculto">
+        <button class="btn" id="btnNovo">Novo</button>
+        <span class="dica" style="margin-left:auto">Ctrl + Enter</span>
+      </div>
+    </div>
+
+    <div class="card oculto" id="cardResultado">
+      <div class="linha" style="margin-top:0;justify-content:space-between">
+        <h3>Resultado</h3>
+        <div class="linha" style="margin-top:0">
+          <span class="meta" id="meta"></span>
+          <button class="btn oculto" id="btnParar">Parar</button>
+          <button class="btn" id="btnCopiar">Copiar tudo</button>
+        </div>
+      </div>
+      <div id="resultado"></div>
+      <div class="conf oculto" id="conferencia">
+        <b>Conferência</b>
+        <div id="confAuto"></div>
+        <div class="linha" style="margin-top:10px">
+          <button class="btn" id="btnConferirIA">Conferir fato por fato</button>
+        </div>
+        <div id="confIA"></div>
+      </div>
+      <div class="linha" id="linhaAjuste" style="margin-top:18px">
+        <input class="ajuste" id="ajuste" placeholder="Pedir ajuste (ex.: prazo de 3 meses, mais resumido)">
+        <button class="btn" id="btnAjuste">Refazer</button>
+      </div>
+    </div>
+
+    <div class="aviso">Revise sempre antes de colar no prontuário. Não digite nome, CPF ou CNS: o texto é enviado a um serviço de IA externo.</div>
+  </main>
+</div>
+
+<script src="api-navegador.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const estado = { tarefas: [], tarefa: null, imagens: [], conversa: [], historicoId: null, controlador: null, historico: [] };
+
+// ---------- Status da IA ----------
+async function atualizarStatus() {
+  try {
+    const s = await (await fetch('/api/status')).json();
+    const b = $('bolinha'), t = $('statusTexto'), btn = $('btnIniciarIA');
+    b.className = 'bolinha';
+    if (!s.online) { b.classList.add('erro'); t.textContent = 'Chave do Groq não informada'; btn.classList.remove('oculto'); }
+    else if (!s.instalado) { b.classList.add('erro'); t.textContent = 'Modelo ' + s.modelo + ' não encontrado'; btn.classList.add('oculto'); }
+    else if (!s.carregado) { b.classList.add('alerta'); t.textContent = 'IA ligada (o modelo carrega no primeiro pedido)'; btn.classList.remove('oculto'); btn.textContent = 'Carregar modelo'; }
+    else { b.classList.add('ok'); t.textContent = 'IA pronta · ' + (s.nome ? s.nome + ' · ' : '') + s.modelo; btn.classList.add('oculto'); }
+  } catch (e) {
+    $('bolinha').className = 'bolinha erro'; $('statusTexto').textContent = 'Aplicativo sem conexão com o servidor local';
+  }
+}
+$('btnIniciarIA').onclick = async () => {
+  $('btnIniciarIA').disabled = true; $('statusTexto').textContent = 'Aguardando a chave…';
+  $('bolinha').className = 'bolinha alerta';
+  try { await fetch('/api/iniciar-ia', { method: 'POST' }); } catch (e) {}
+  $('btnIniciarIA').disabled = false; await atualizarStatus(); aquecer();
+};
+
+// ---------- Tarefas ----------
+async function carregarTarefas() {
+  estado.tarefas = await (await fetch('/api/tarefas')).json();
+  const lista = $('listaTarefas'); lista.innerHTML = '';
+  for (const t of estado.tarefas) {
+    const b = document.createElement('button');
+    b.className = 'tarefa'; b.textContent = nomeCurto(t.nome); b.onclick = () => escolherTarefa(t.id);
+    b.dataset.id = t.id; lista.appendChild(b);
+  }
+  let salva = null; try { salva = localStorage.getItem('tarefa'); } catch (e) {}
+  escolherTarefa(estado.tarefas.some((t) => t.id === salva) ? salva : (estado.tarefas[0] || {}).id);
+}
+function escolherTarefa(id) {
+  if (!id) return;
+  estado.tarefa = id;
+  try { localStorage.setItem('tarefa', id); } catch (e) {}
+  document.querySelectorAll('.tarefa').forEach((b) => b.classList.toggle('ativa', b.dataset.id === id));
+  const t = estado.tarefas.find((x) => x.id === id);
+  $('tituloTarefa').textContent = t ? nomeCurto(t.nome) : id;
+  const pesquisa = !!(t && t.pesquisa);
+  $('entrada').placeholder = pesquisa
+    ? 'Digite a dúvida (ex.: ajuste de lítio na insuficiência renal). A resposta cita livro e página.\n\nLivros: ' + t.livros.join(' · ')
+    : 'Cole aqui o texto. Para laudos, arraste ou cole as fotos.';
+  $('btnGerar').textContent = pesquisa ? 'Pesquisar' : 'Gerar';
+  $('btnAnexar').classList.toggle('oculto', pesquisa);
+  $('ajuste').placeholder = pesquisa ? 'Perguntar mais sobre o mesmo assunto' : 'Pedir ajuste (ex.: prazo de 3 meses, mais resumido)';
+  aquecer();
+}
+function nomeCurto(nome) { return nome.replace(/^\d+\s*-\s*/, ''); }
+// Pede para a IA já ir lendo a instrução da tarefa enquanto o texto é colado.
+function aquecer() {
+  if (!estado.tarefa || estado.controlador) return;
+  fetch('/api/aquecer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tarefa: estado.tarefa }) }).catch(() => {});
+}
+
+// ---------- Imagens ----------
+function reduzirImagem(arquivo) {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const max = 1600, esc = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * esc); c.height = Math.round(img.height * esc);
+        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/jpeg', 0.88));
+      };
+      img.onerror = reject; img.src = leitor.result;
+    };
+    leitor.onerror = reject; leitor.readAsDataURL(arquivo);
+  });
+}
+async function adicionarImagens(arquivos) {
+  for (const a of arquivos) if (a.type.startsWith('image/')) estado.imagens.push(await reduzirImagem(a));
+  desenharImagens();
+}
+function desenharImagens() {
+  const box = $('imagens'); box.innerHTML = '';
+  estado.imagens.forEach((src, i) => {
+    const d = document.createElement('div'); d.className = 'img';
+    d.innerHTML = '<img alt="anexo"><button title="Remover">×</button>';
+    d.querySelector('img').src = src;
+    d.querySelector('button').onclick = () => { estado.imagens.splice(i, 1); desenharImagens(); };
+    box.appendChild(d);
+  });
+}
+$('btnAnexar').onclick = () => $('arquivo').click();
+$('arquivo').onchange = (e) => { adicionarImagens(e.target.files); e.target.value = ''; };
+const ent = $('entrada');
+ent.addEventListener('dragover', (e) => { e.preventDefault(); ent.classList.add('soltar'); });
+ent.addEventListener('dragleave', () => ent.classList.remove('soltar'));
+ent.addEventListener('drop', (e) => { e.preventDefault(); ent.classList.remove('soltar'); adicionarImagens(e.dataTransfer.files); });
+ent.addEventListener('paste', (e) => {
+  const fotos = [...(e.clipboardData || {}).files || []].filter((f) => f.type.startsWith('image/'));
+  if (fotos.length) { e.preventDefault(); adicionarImagens(fotos); }
+});
+
+// ---------- Exibição do resultado ----------
+function escapar(s) { return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+function desenharResultado(texto) {
+  const alvo = $('resultado'); alvo.innerHTML = '';
+  const partes = texto.split(/```[a-zA-Z]*\n?/);
+  partes.forEach((p, i) => {
+    if (i % 2 === 1) {
+      const bloco = document.createElement('div'); bloco.className = 'bloco';
+      const conteudo = p.replace(/\n+$/, '');
+      bloco.textContent = conteudo;
+      const b = document.createElement('button'); b.className = 'btn'; b.textContent = 'Copiar';
+      b.onclick = () => copiar(conteudo, b); bloco.appendChild(b); alvo.appendChild(bloco);
+    } else if (p) {
+      const s = document.createElement('span');
+      s.innerHTML = escapar(p).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      alvo.appendChild(s);
+    }
+  });
+}
+async function copiar(texto, botao) {
+  try { await navigator.clipboard.writeText(texto); }
+  catch (e) { const t = document.createElement('textarea'); t.value = texto; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); }
+  const antes = botao.textContent; botao.textContent = 'Copiado ✓'; setTimeout(() => (botao.textContent = antes), 1500);
+}
+function textoParaCopiar() {
+  const ultimo = [...estado.conversa].reverse().find((m) => m.role === 'assistant');
+  return ultimo ? ultimo.texto.replace(/```[a-zA-Z]*\n?/g, '').trim() : '';
+}
+$('btnCopiar').onclick = () => copiar(textoParaCopiar(), $('btnCopiar'));
+
+// ---------- Geração ----------
+async function enviar() {
+  const card = $('cardResultado'); card.classList.remove('oculto');
+  $('resultado').innerHTML = '<span class="pensando">Lendo o texto… (se a tarefa acabou de ser escolhida, a IA ainda pode estar lendo as instruções — até 1 minuto)</span>';
+  $('btnGerar').disabled = true; $('btnAjuste').disabled = true; $('btnParar').classList.remove('oculto');
+  const inicio = Date.now(); let texto = ''; let pedacos = 0; let primeiro = 0;
+  const relogio = setInterval(() => {
+    const s = Math.round((Date.now() - inicio) / 1000);
+    $('meta').textContent = s + ' s' + (primeiro && pedacos ? ' · ' + (pedacos / ((Date.now() - primeiro) / 1000)).toFixed(1) + ' pedaços/s' : '');
+  }, 500);
+  estado.controlador = new AbortController();
+  try {
+    const r = await fetch('/api/gerar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: estado.controlador.signal,
+      body: JSON.stringify({ tarefa: estado.tarefa, mensagens: estado.conversa }),
+    });
+    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.erro || ('Erro ' + r.status)); }
+    const leitor = r.body.getReader(); const dec = new TextDecoder(); let buffer = '';
+    while (true) {
+      const { value, done } = await leitor.read(); if (done) break;
+      buffer += dec.decode(value, { stream: true });
+      const linhas = buffer.split('\n'); buffer = linhas.pop();
+      for (const l of linhas) {
+        const d = l.trim(); if (!d.startsWith('data:')) continue;
+        const dado = d.slice(5).trim(); if (dado === '[DONE]') continue;
+        try {
+          const j = JSON.parse(dado); const delta = (j.choices && j.choices[0] && j.choices[0].delta) || {};
+          if (delta.content) { if (!primeiro) primeiro = Date.now(); texto += delta.content; pedacos++; desenharResultado(texto); }
+          else if ((delta.reasoning_content || delta.reasoning) && !texto) $('resultado').innerHTML = '<span class="pensando">A IA está pensando…</span>';
+          if (j.error) throw new Error(j.error.message || j.error);
+        } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
+      }
+    }
+    if (!texto) throw new Error('A IA não devolveu texto. Tente de novo.');
+    estado.conversa.push({ role: 'assistant', texto });
+    conferenciaAutomatica();
+    await salvarNoHistorico();
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      if (texto) estado.conversa.push({ role: 'assistant', texto: texto + '\n[interrompido]' });
+      else estado.conversa.pop();
+    } else {
+      estado.conversa.pop();
+      $('resultado').innerHTML = '<span class="erro-msg">Erro: ' + escapar(e.message) + '</span>\n\nSe a chave não foi informada, clique em “Chave” no topo da tela.';
+    }
+  } finally {
+    clearInterval(relogio); estado.controlador = null;
+    $('btnGerar').disabled = false; $('btnAjuste').disabled = false; $('btnParar').classList.add('oculto');
+    atualizarStatus();
+  }
+}
+$('btnParar').onclick = () => estado.controlador && estado.controlador.abort();
+$('btnGerar').onclick = () => {
+  const t = ent.value.trim();
+  if (!t && !estado.imagens.length) { ent.focus(); return; }
+  estado.conversa = [{ role: 'user', texto: t, imagens: estado.imagens.slice() }];
+  estado.historicoId = String(Date.now());
+  enviar();
+};
+$('btnAjuste').onclick = () => {
+  const a = $('ajuste').value.trim(); if (!a || !estado.conversa.length) return;
+  estado.conversa.push({ role: 'user', texto: a + '\n\nRefaça o documento inteiro com essa correção, seguindo todas as regras.' });
+  $('ajuste').value = ''; enviar();
+};
+$('ajuste').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('btnAjuste').click(); });
+ent.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.ctrlKey) $('btnGerar').click(); });
+$('btnNovo').onclick = () => {
+  ent.value = ''; estado.imagens = []; desenharImagens(); estado.conversa = []; estado.historicoId = null;
+  $('cardResultado').classList.add('oculto'); ent.focus();
+};
+
+// A conferência (CID-10 oficial, números, omissões por fato, palavras novas, alertas de segurança) fica em conferencia.js
+// ---------- Histórico ----------
+async function salvarNoHistorico() {
+  const t = estado.tarefas.find((x) => x.id === estado.tarefa);
+  const item = {
+    id: estado.historicoId, data: new Date().toISOString(), tarefa: estado.tarefa, tarefaNome: t ? t.nome : estado.tarefa,
+    conversa: estado.conversa.map((m) => ({ role: m.role, texto: m.texto, nImagens: (m.imagens || []).length })),
+  };
+  await fetch('/api/historico', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item) });
+  carregarHistorico();
+}
+async function carregarHistorico() {
+  estado.historico = await (await fetch('/api/historico')).json();
+  desenharHistorico();
+}
+function desenharHistorico() {
+  const termo = $('busca').value.toLowerCase(); const box = $('historico'); box.innerHTML = '';
+  const itens = estado.historico.filter((h) => !termo || JSON.stringify(h.conversa).toLowerCase().includes(termo) || (h.tarefaNome || '').toLowerCase().includes(termo));
+  if (!itens.length) { box.innerHTML = '<div class="dica" style="padding:6px">Nada por aqui ainda.</div>'; return; }
+  for (const h of itens.slice(0, 100)) {
+    const d = document.createElement('div'); d.className = 'hist-item';
+    const prim = (h.conversa[0] && h.conversa[0].texto) || '(fotos)';
+    const dt = new Date(h.data);
+    d.innerHTML = '<div class="t"><b></b><span></span></div><button class="x" title="Apagar">×</button>';
+    d.querySelector('b').textContent = nomeCurto(h.tarefaNome || '');
+    d.querySelector('span').textContent = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' · ' + prim.slice(0, 60);
+    d.querySelector('.t').onclick = () => abrirHistorico(h);
+    d.querySelector('.x').onclick = async (e) => {
+      e.stopPropagation(); if (!confirm('Apagar este item do histórico?')) return;
+      await fetch('/api/historico?id=' + encodeURIComponent(h.id), { method: 'DELETE' }); carregarHistorico();
+    };
+    box.appendChild(d);
+  }
+}
+function abrirHistorico(h) {
+  if (estado.tarefas.some((t) => t.id === h.tarefa)) escolherTarefa(h.tarefa);
+  estado.historicoId = h.id; estado.conversa = h.conversa.map((m) => ({ role: m.role, texto: m.texto }));
+  ent.value = (h.conversa[0] && h.conversa[0].texto) || ''; estado.imagens = []; desenharImagens();
+  const ultimo = [...h.conversa].reverse().find((m) => m.role === 'assistant');
+  $('cardResultado').classList.remove('oculto'); desenharResultado(ultimo ? ultimo.texto : '');
+  conferenciaAutomatica();
+  const n = h.conversa[0] && h.conversa[0].nImagens;
+  $('meta').textContent = 'Do histórico' + (n ? ' · as ' + n + ' foto(s) originais não ficam salvas' : '');
+}
+$('busca').oninput = desenharHistorico;
+$('btnLimparHist').onclick = async () => {
+  if (!confirm('Apagar TODO o histórico? Isso não pode ser desfeito.')) return;
+  await fetch('/api/historico', { method: 'DELETE' }); carregarHistorico();
+};
+
+carregarTarefas(); carregarHistorico(); atualizarStatus(); setInterval(atualizarStatus, 15000);
+</script>
+<script src="conferencia.js"></script>
+</body>
+</html>
