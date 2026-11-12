@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Assistente Clínico</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0071e3">
+<link rel="icon" href="icones/icone-192.png">
+<link rel="apple-touch-icon" href="icones/icone-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Assistente">
 <style>
   :root {
     --bg: #f5f5f7; --painel: #ffffff; --lateral: rgba(245, 245, 247, .6); --borda: #d2d2d7; --linha: #e8e8ed;
@@ -426,5 +432,6 @@ $('btnLimparHist').onclick = async () => {
 carregarTarefas(); carregarHistorico(); atualizarStatus(); setInterval(atualizarStatus, 15000);
 </script>
 <script src="conferencia.js"></script>
+<script src="pwa.js"></script>
 </body>
 </html>

@@ -1,0 +1,8 @@
+# Nunca enviar dados reais, chaves ou configurações locais
+.env
+.env.*
+*.local
+historico*.json
+config.json
+backup*
+*.bak

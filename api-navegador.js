@@ -57,6 +57,7 @@ Responda só com a lista, um fato por linha, começando cada linha com "- ".`;
 
   // Chama a IA; se o primeiro modelo estiver no limite, usa o seguinte; no último, espera o tempo pedido e tenta de novo.
   async function chamarIA(corpo, temImagens, signal) {
+    if (!navigator.onLine) return resposta({ erro: 'Sem internet. Gerar documentos precisa de conexão. O histórico e a busca de CID funcionam offline.' }, 503);
     if (!chave()) return resposta({ erro: 'Informe a sua chave do Groq (botão no topo da tela).' }, 401);
     const fila = MODELOS.filter((m) => !temImagens || m.imagens);
     let erro = 'Nenhum modelo disponível.';
